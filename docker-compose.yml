@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: canteen-app
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=canteen
+      - DB_USERNAME=canteen_user
+      - DB_PASSWORD=canteen_secret
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - canteen-network
+
+  db:
+    image: mysql:8.0
+    container_name: canteen-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: canteen
+      MYSQL_USER: canteen_user
+      MYSQL_PASSWORD: canteen_secret
+      MYSQL_ROOT_PASSWORD: root_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_secret"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - canteen-network
+
+networks:
+  canteen-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
