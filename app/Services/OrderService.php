@@ -17,7 +17,18 @@ class OrderService
     }
 
     /**
-     * @return array{success: bool, message: string}
+     * @return Collection<int, Order>
+     */
+    public function listOrders(): Collection
+    {
+        return Order::query()
+            ->with('product')
+            ->latest()
+            ->get();
+    }
+
+    /**
+     * @return array{success: bool, message: string, order?: Order}
      */
     public function placeOrder(?int $productId, int $quantity): array
     {
@@ -39,13 +50,17 @@ class OrderService
 
         $product->decrement('stock', $quantity);
 
-        Order::create([
+        $order = Order::create([
             'product_id' => $product->id,
             'quantity' => $quantity,
             'total_price' => $totalPrice,
             'status' => 'pending',
         ]);
 
-        return ['success' => true, 'message' => 'Pesanan berhasil dibuat.'];
+        return [
+            'success' => true,
+            'message' => 'Pesanan berhasil dibuat.',
+            'order' => $order->load('product'),
+        ];
     }
 }
