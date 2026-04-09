@@ -4,16 +4,23 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Repositories\Contracts\OrderRepositoryInterface;
+use App\Repositories\Contracts\ProductRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 class OrderService
 {
+    public function __construct(
+        private ProductRepositoryInterface $productRepository,
+        private OrderRepositoryInterface $orderRepository,
+    ) {}
+
     /**
      * @return Collection<int, Product>
      */
     public function getProductsForDashboard(): Collection
     {
-        return Product::all();
+        return $this->productRepository->all();
     }
 
     /**
@@ -21,10 +28,7 @@ class OrderService
      */
     public function listOrders(): Collection
     {
-        return Order::query()
-            ->with('product')
-            ->latest()
-            ->get();
+        return $this->orderRepository->allWithProductLatest();
     }
 
     /**
@@ -32,7 +36,7 @@ class OrderService
      */
     public function placeOrder(?int $productId, int $quantity): array
     {
-        $product = Product::find($productId);
+        $product = $this->productRepository->find((int) ($productId ?? 0));
 
         if (!$product) {
             return ['success' => false, 'message' => 'Produk tidak ditemukan.'];
@@ -48,9 +52,9 @@ class OrderService
 
         $totalPrice = $product->price * $quantity;
 
-        $product->decrement('stock', $quantity);
+        $this->productRepository->decrementStock($product, $quantity);
 
-        $order = Order::create([
+        $order = $this->orderRepository->create([
             'product_id' => $product->id,
             'quantity' => $quantity,
             'total_price' => $totalPrice,
@@ -60,7 +64,7 @@ class OrderService
         return [
             'success' => true,
             'message' => 'Pesanan berhasil dibuat.',
-            'order' => $order->load('product'),
+            'order' => $order,
         ];
     }
 }
